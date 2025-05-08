@@ -18,25 +18,43 @@ cat << "EOF"
 █▀▄ █▀▀ █░█ █▀▀ █░░ █▀█ █▀█ █▀▀ █▀▄   █▄▄ █▄█   █▀ █▀█ █░█ ▄▀█ █▀▄▀█   █▀▄ ▄▀█ ▀█▀ ▀█▀ ▄▀█
 █▄▀ ██▄ ▀▄▀ ██▄ █▄▄ █▄█ █▀▀ ██▄ █▄▀   █▄█ ░█░   ▄█ █▄█ █▀█ █▀█ █░▀░█   █▄▀ █▀█ ░█░ ░█░ █▀█
 EOF
-# Get current UTC time, rounded down to last full hour
-UTC_DATE=$(date -u "+%Y-%m-%d")
-UTC_HOUR=$(date -u "+%H")
-FORMATTED_HOUR=$(printf "%02d" "$UTC_HOUR")
-TIMESTAMP="${UTC_DATE}-${FORMATTED_HOUR}-00"
+#!/bin/bash
 
-# Dynamic consensus snapshot URL
-CONSENSUS_URL="https://collector.torproject.org/recent/relay-descriptors/consensuses/${TIMESTAMP}-consensus"
+# Developed by Soham Datta
 
-# Temporary file
-TMP_FILE=$(mktemp)
+# URL of consensus directory
+BASE_URL="https://collector.torproject.org/recent/relay-descriptors/consensuses/"
 
-echo -e "\n📥 Downloading Tor consensus snapshot from: $CONSENSUS_URL"
-curl -s "$CONSENSUS_URL" -o "$TMP_FILE"
+# Temporary file to store index and consensus
+TMP_INDEX=$(mktemp)
+TMP_CONSENSUS=$(mktemp)
+
+# Fetch the index HTML
+echo "📥 Fetching consensus index page..."
+curl -s "$BASE_URL" -o "$TMP_INDEX"
+
+# Extract consensus filenames from HTML
+consensus_files=($(grep -oP '\d{4}-\d{2}-\d{2}-\d{2}-00-00-consensus' "$TMP_INDEX"))
+
+# Check if files found
+if [ ${#consensus_files[@]} -eq 0 ]; then
+    echo "❌ No consensus files found."
+    rm "$TMP_INDEX" "$TMP_CONSENSUS"
+    exit 1
+fi
+
+# Pick a random file
+RANDOM_FILE=${consensus_files[$RANDOM % ${#consensus_files[@]}]}
+DOWNLOAD_URL="${BASE_URL}${RANDOM_FILE}"
+
+echo "🎯 Selected random consensus file: $RANDOM_FILE"
+echo "🌐 Downloading from: $DOWNLOAD_URL"
+curl -s "$DOWNLOAD_URL" -o "$TMP_CONSENSUS"
 
 # Validate the consensus file
-if ! grep -q "^network-status-version" "$TMP_FILE"; then
-    echo "❌ Error: Not a valid consensus file or snapshot not available for this hour."
-    rm "$TMP_FILE"
+if ! grep -q "^network-status-version" "$TMP_CONSENSUS"; then
+    echo "❌ Error: Not a valid consensus file."
+    rm "$TMP_INDEX" "$TMP_CONSENSUS"
     exit 1
 fi
 
@@ -47,16 +65,16 @@ while true; do
         case $REPLY in
             1)
                 echo "📊 Relay Summary:"
-                echo "Total relays: $(grep -c '^r ' "$TMP_FILE")"
-                echo "Guard relays: $(awk '/^r / {r=$2} /^s / {if (/Guard/) print r}' "$TMP_FILE" | wc -l)"
-                echo "Exit relays : $(awk '/^r / {r=$2} /^s / {if (/Exit/) print r}' "$TMP_FILE" | wc -l)"
-                echo "Authorities : $(awk '/^r / {r=$2} /^s / {if (/Authority/) print r}' "$TMP_FILE" | wc -l)"
+                echo "Total relays: $(grep -c '^r ' "$TMP_CONSENSUS")"
+                echo "Guard relays: $(awk '/^r / {r=$2} /^s / {if (/Guard/) print r}' "$TMP_CONSENSUS" | wc -l)"
+                echo "Exit relays : $(awk '/^r / {r=$2} /^s / {if (/Exit/) print r}' "$TMP_CONSENSUS" | wc -l)"
+                echo "Authorities : $(awk '/^r / {r=$2} /^s / {if (/Authority/) print r}' "$TMP_CONSENSUS" | wc -l)"
                 break
                 ;;
             2)
                 read -p "Enter 2-letter country code (e.g., US, DE, NL): " cc
                 echo "🌍 Relays in $cc:"
-                grep "^r " "$TMP_FILE" | grep -i " $cc" | awk '{print "Relay:", $2, "IP:", $6}' | head -n 20
+                grep "^r " "$TMP_CONSENSUS" | grep -i " $cc" | awk '{print "Relay:", $2, "IP:", $6}' | head -n 20
                 break
                 ;;
             3)
@@ -64,12 +82,12 @@ while true; do
                 awk '
                 /^r / { r=$2; ip=$6 }
                 /^s / { if (/Exit/) print "Relay:", r, "IP:", ip }
-                ' "$TMP_FILE" | head -n 20
+                ' "$TMP_CONSENSUS" | head -n 20
                 break
                 ;;
             4)
                 echo "👋 Exiting. Cleaning up..."
-                rm "$TMP_FILE"
+                rm "$TMP_INDEX" "$TMP_CONSENSUS"
                 exit 0
                 ;;
             *)
