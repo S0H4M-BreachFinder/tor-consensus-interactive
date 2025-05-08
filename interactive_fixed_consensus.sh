@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Static consensus snapshot URL
-CONSENSUS_URL="https://collector.torproject.org/recent/relay-descriptors/consensuses/2025-05-03-16-00-00-consensus"
+CONSENSUS_URL="https://collector.torproject.org/recent/relay-descriptors/consensuses/2025-05-05-03-00-00-consensus"
 
 # Temporary file
 TMP_FILE=$(mktemp)
