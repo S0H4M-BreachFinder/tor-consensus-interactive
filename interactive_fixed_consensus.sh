@@ -1,6 +1,7 @@
 #!/bin/bash
 
 # Static consensus snapshot URL
+echo "Developed By Soham Datta"
 CONSENSUS_URL="https://collector.torproject.org/recent/relay-descriptors/consensuses/2025-05-05-03-00-00-consensus"
 
 # Temporary file
