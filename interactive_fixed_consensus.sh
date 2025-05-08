@@ -1,18 +1,41 @@
 #!/bin/bash
 
-# Static consensus snapshot URL
-echo "Developed By Soham Datta"
-CONSENSUS_URL="https://collector.torproject.org/recent/relay-descriptors/consensuses/2025-05-05-03-00-00-consensus"
+# Tor Consensus Snapshot Downloader & Analyzer
+# Developed By Soham Datta
+
+# ASCII Art Header
+echo "+----------------------------------------------------------------+";
+echo "|                                                                |";
+echo "| _____             ____                                         |";
+echo "||_   _|__  _ __   / ___|___  _ __  ___  ___ _ __  ___ _   _ ___ |";
+echo "|  | |/ _ \| '__| | |   / _ \| '_ \/ __|/ _ \ '_ \/ __| | | / __||";
+echo "|  | | (_) | |    | |__| (_) | | | \__ \  __/ | | \__ \ |_| \__ \|";
+echo "|  |_|\___/|_|     \____\___/|_| |_|___/\___|_| |_|___/\__,_|___/|";
+echo "|                                                                |";
+echo "+----------------------------------------------------------------+";
+cat << "EOF"
+
+█▀▄ █▀▀ █░█ █▀▀ █░░ █▀█ █▀█ █▀▀ █▀▄   █▄▄ █▄█   █▀ █▀█ █░█ ▄▀█ █▀▄▀█   █▀▄ ▄▀█ ▀█▀ ▀█▀ ▄▀█
+█▄▀ ██▄ ▀▄▀ ██▄ █▄▄ █▄█ █▀▀ ██▄ █▄▀   █▄█ ░█░   ▄█ █▄█ █▀█ █▀█ █░▀░█   █▄▀ █▀█ ░█░ ░█░ █▀█
+EOF
+# Get current UTC time, rounded down to last full hour
+UTC_DATE=$(date -u "+%Y-%m-%d")
+UTC_HOUR=$(date -u "+%H")
+FORMATTED_HOUR=$(printf "%02d" "$UTC_HOUR")
+TIMESTAMP="${UTC_DATE}-${FORMATTED_HOUR}-00"
+
+# Dynamic consensus snapshot URL
+CONSENSUS_URL="https://collector.torproject.org/recent/relay-descriptors/consensuses/${TIMESTAMP}-consensus"
 
 # Temporary file
 TMP_FILE=$(mktemp)
 
-echo "📥 Downloading Tor consensus snapshot from: $CONSENSUS_URL"
+echo -e "\n📥 Downloading Tor consensus snapshot from: $CONSENSUS_URL"
 curl -s "$CONSENSUS_URL" -o "$TMP_FILE"
 
-# Check for valid consensus data
+# Validate the consensus file
 if ! grep -q "^network-status-version" "$TMP_FILE"; then
-    echo "❌ Error: Not a valid consensus file."
+    echo "❌ Error: Not a valid consensus file or snapshot not available for this hour."
     rm "$TMP_FILE"
     exit 1
 fi
